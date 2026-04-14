@@ -26,11 +26,11 @@ pub fn main() !void {
     const n: usize = 50;
     const p: usize = 100;
     
-    var a = try allocator.alloc(f32, m * n);
-    var b = try allocator.alloc(f32, n * p);
-    var result_zig = try allocator.alloc(f32, m * p);
-    var result_rust = try allocator.alloc(f32, m * p);
-    var result_cpp = try allocator.alloc(f32, m * p);
+    const a = try allocator.alloc(f32, m * n);
+    const b = try allocator.alloc(f32, n * p);
+    const result_zig = try allocator.alloc(f32, m * p);
+    const result_rust = try allocator.alloc(f32, m * p);
+    const result_cpp = try allocator.alloc(f32, m * p);
     defer {
         allocator.free(a);
         allocator.free(b);
