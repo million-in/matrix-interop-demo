@@ -4,9 +4,10 @@ const std = @import("std");
 // Export C ABI for interop
 export fn zig_matrix_multiply(
     a_ptr: [*]f32, a_rows: usize, a_cols: usize,
-    b_ptr: [*]f32, b_rows: usize, b_cols: usize,
+    b_ptr: [*]f32, _b_rows: usize, b_cols: usize,
     result_ptr: [*]f32
 ) void {
+    _ = _b_rows;
     // Matrix multiplication: A (m x n) * B (n x p) = C (m x p)
     const m = a_rows;
     const n = a_cols;
