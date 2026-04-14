@@ -1,5 +1,6 @@
 // cpp/matrix.cpp
 #include "matrix.h"
+#include <stddef.h>
 
 class Matrix {
 public:

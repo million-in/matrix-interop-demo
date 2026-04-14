@@ -1,4 +1,9 @@
-// cpp/matrix.h
+#ifndef MATRIX_H
+#define MATRIX_H
+
+#include <stddef.h>  // Required for size_t
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -17,3 +22,5 @@ void cpp_matrix_add(
 #ifdef __cplusplus
 }
 #endif
+
+#endif // MATRIX_H
