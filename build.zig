@@ -35,16 +35,22 @@ pub fn build(b: *std.Build) void {
     });
     bench.addObject(zig_obj);
 
-    // Link Rust static library
-    const rust_lib_path = switch (target.result.os.tag) {
-        .windows => "rust/target/x86_64-pc-windows-gnu/release/libmatrix_rs.a",
-        .linux => "rust/target/x86_64-unknown-linux-gnu/release/libmatrix_rs.a",
-        .macos => "rust/target/x86_64-apple-darwin/release/libmatrix_rs.a",
-        else => @compileError("Unsupported OS"),
+    // Link Rust static library - use runtime check instead of comptime switch
+    const rust_lib_path = blk: {
+        const os_tag = target.result.os.tag;
+        if (os_tag == .windows) {
+            break :blk "rust/target/x86_64-pc-windows-gnu/release/libmatrix_rs.a";
+        } else if (os_tag == .linux) {
+            break :blk "rust/target/x86_64-unknown-linux-gnu/release/libmatrix_rs.a";
+        } else if (os_tag == .macos) {
+            break :blk "rust/target/x86_64-apple-darwin/release/libmatrix_rs.a";
+        } else {
+            @panic("Unsupported OS");
+        }
     };
     bench.addObjectFile(b.path(rust_lib_path));
 
-    // Windows-specific libraries (only if needed for Rust/C++ interop)
+    // Windows-specific libraries
     if (target.result.os.tag == .windows) {
         bench.linkSystemLibrary("user32");
         bench.linkSystemLibrary("kernel32");
