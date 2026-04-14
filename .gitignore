@@ -1,0 +1,26 @@
+# Zig
+.zig-cache/
+zig-out/
+
+# Rust
+/target/
+Cargo.lock
+
+# C++
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
