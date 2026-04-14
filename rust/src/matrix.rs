@@ -2,26 +2,24 @@
 #[no_mangle]
 pub unsafe extern "C" fn rust_matrix_multiply(
     a_ptr: *const f32,
-    _a_rows: usize,
+    a_rows: usize,
     a_cols: usize,
     b_ptr: *const f32,
     _b_rows: usize,
     b_cols: usize,
     result_ptr: *mut f32,
 ) {
-    let a_rows = _a_rows;
-    let b_cols = b_cols;
-    let a_cols = a_cols;
+    // Zero result matrix
+    std::ptr::write_bytes(result_ptr, 0, a_rows * b_cols);
 
+    // Cache-friendly i, k, j loop order
     for i in 0..a_rows {
-        for j in 0..b_cols {
-            let mut sum = 0.0;
-            for k in 0..a_cols {
-                // Using raw pointer offsets to eliminate all bounds checks
-                // and give LLVM a direct path to vectorization.
-                sum += *a_ptr.add(i * a_cols + k) * *b_ptr.add(k * b_cols + j);
+        for k in 0..a_cols {
+            // Pre-fetch a_val to maximize SIMD optimization in inner loop
+            let a_val = *a_ptr.add(i * a_cols + k);
+            for j in 0..b_cols {
+                *result_ptr.add(i * b_cols + j) += a_val * *b_ptr.add(k * b_cols + j);
             }
-            *result_ptr.add(i * b_cols + j) = sum;
         }
     }
 }
