@@ -1,6 +1,9 @@
 // cpp/matrix.cpp
 #include "matrix.h"
-#include <cstring> // for memset
+#include <cstring>
+#include <algorithm> // for std::min
+
+#define BLOCK_SIZE 64
 
 extern "C" {
     void cpp_matrix_multiply(
@@ -11,12 +14,22 @@ extern "C" {
         // Zero out the result matrix
         std::memset(result_ptr, 0, a_rows * b_cols * sizeof(float));
 
-        // Optimized i, k, j loop order for cache efficiency
-        for (size_t i = 0; i < a_rows; ++i) {
-            for (size_t k = 0; k < a_cols; ++k) {
-                float a_val = a_ptr[i * a_cols + k];
-                for (size_t j = 0; j < b_cols; ++j) {
-                    result_ptr[i * b_cols + j] += a_val * b_ptr[k * b_cols + j];
+        // Stage 4: Cache Blocking (Tiling)
+        for (size_t ii = 0; ii < a_rows; ii += BLOCK_SIZE) {
+            for (size_t kk = 0; kk < a_cols; kk += BLOCK_SIZE) {
+                for (size_t jj = 0; jj < b_cols; jj += BLOCK_SIZE) {
+                    
+                    size_t i_end = std::min(ii + BLOCK_SIZE, a_rows);
+                    for (size_t i = ii; i < i_end; ++i) {
+                        size_t k_end = std::min(kk + BLOCK_SIZE, a_cols);
+                        for (size_t k = kk; k < k_end; ++k) {
+                            float a_val = a_ptr[i * a_cols + k];
+                            size_t j_end = std::min(jj + BLOCK_SIZE, b_cols);
+                            for (size_t j = jj; j < j_end; ++j) {
+                                result_ptr[i * b_cols + j] += a_val * b_ptr[k * b_cols + j];
+                            }
+                        }
+                    }
                 }
             }
         }

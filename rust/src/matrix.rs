@@ -1,4 +1,8 @@
 // rust/matrix.rs
+use std::cmp::min;
+
+const BLOCK_SIZE: usize = 64;
+
 #[no_mangle]
 pub unsafe extern "C" fn rust_matrix_multiply(
     a_ptr: *const f32,
@@ -9,16 +13,25 @@ pub unsafe extern "C" fn rust_matrix_multiply(
     b_cols: usize,
     result_ptr: *mut f32,
 ) {
-    // Zero result matrix
+    // Zero out result
     std::ptr::write_bytes(result_ptr, 0, a_rows * b_cols);
 
-    // Cache-friendly i, k, j loop order
-    for i in 0..a_rows {
-        for k in 0..a_cols {
-            // Pre-fetch a_val to maximize SIMD optimization in inner loop
-            let a_val = *a_ptr.add(i * a_cols + k);
-            for j in 0..b_cols {
-                *result_ptr.add(i * b_cols + j) += a_val * *b_ptr.add(k * b_cols + j);
+    // Stage 4: Cache Blocking (Tiling)
+    for ii in (0..a_rows).step_by(BLOCK_SIZE) {
+        for kk in (0..a_cols).step_by(BLOCK_SIZE) {
+            for jj in (0..b_cols).step_by(BLOCK_SIZE) {
+                
+                let i_end = min(ii + BLOCK_SIZE, a_rows);
+                for i in ii..i_end {
+                    let k_end = min(kk + BLOCK_SIZE, a_cols);
+                    for k in kk..k_end {
+                        let a_val = *a_ptr.add(i * a_cols + k);
+                        let j_end = min(jj + BLOCK_SIZE, b_cols);
+                        for j in jj..j_end {
+                            *result_ptr.add(i * b_cols + j) += a_val * *b_ptr.add(k * b_cols + j);
+                        }
+                    }
+                }
             }
         }
     }
