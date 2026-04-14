@@ -14,41 +14,37 @@ This document tracks the iterative optimization of the `matrix_lib` benchmark ac
 ---
 
 ## Stage 1: The "Naive" Baseline (i, j, k order)
-**Target**: 1024 x 1024 Matrix Multiplication (~2.1B FLOPs).
-**Code State**: Standard nested loops using high-level abstractions (Safe Slices in Rust, standard indexing in Zig/C++).
-
 | Implementation | Execution Time | Context |
 | :--- | :--- | :--- |
-| **Zig** | 10,414 ms | Default `ReleaseFast` optimizations. |
+| **Zig** | 10,414 ms | Default `ReleaseFast`. |
 | **C++** | 12,820 ms | Standard `-O3`. |
-| **Rust** | 12,826 ms | Standard `--release` with LTO. |
-
-**Observation**: Zig led because its `ReleaseFast` defaults were more aggressive in autovectorization than the C++ and Rust defaults.
+| **Rust** | 12,826 ms | Standard `--release`. |
 
 ---
 
 ## Stage 2: Toolchain Standardization
-**Change**: Added `-march=native` and `-ffast-math` to the C++ build via `build.zig`. Forced Rust to use `target-cpu=native`.
-
-| Implementation | Execution Time | Delta |
+| Implementation | Execution Time | Context |
 | :--- | :--- | :--- |
-| **C++** | **10,671 ms** | -17% (Leadership Flip) |
-| **Rust** | 12,685 ms | -1% (Negligible) |
-| **Zig** | 13,466 ms | +29% (Regression via explicit target) |
-
-**Observation**: Standardizing the toolchains allowed C++ to leverage aggressive floating-point reordering (`-ffast-math`), proving that "language speed" is often just "compiler configuration."
+| **C++** | 10,671 ms | `-march=native -ffast-math`. |
+| **Rust** | 12,685 ms | `target-cpu=native`. |
+| **Zig** | 13,466 ms | Explicit `-Dtarget=native`. |
 
 ---
 
-## Stage 3: The "Hardware Sympathy" Breakthrough (i, k, j order)
-**Change**: Reordered the triple-nested loops from `(i, j, k)` to `(i, k, j)`. Switched Rust to use raw pointers to eliminate bounds-checking overhead.
-
-| Implementation | Execution Time | Speedup vs Stage 1 |
+## Stage 3: Hardware Sympathy (i, k, j order)
+| Implementation | Execution Time | Context |
 | :--- | :--- | :--- |
-| **C++** | **419 ms** | **30x** |
-| **Rust** | **785 ms** | **16x** |
-| **Zig** | **865 ms** | **12x** |
+| **C++** | 419 ms | Sequential row access. |
+| **Rust** | 785 ms | Raw pointers + sequential access. |
+| **Zig** | 865 ms | Sequential row access. |
 
-**Total Cumulative Speedup**: **~48x** improvement from the original 20-second runs.
+---
 
-**Conclusion**: The leap from 13,000ms to 400ms was achieved not by changing the language, but by aligning the algorithm with the **CPU Cache Hierarchy**.
+## Stage 4: Cache Blocking / Tiling (64x64 Blocks)
+| Implementation | Execution Time | Delta vs Stage 3 |
+| :--- | :--- | :--- |
+| **C++** | **401 ms** | -4% |
+| **Rust** | **647 ms** | -17% |
+| **Zig** | **1367 ms** | +58% |
+
+**Observation**: Rust achieved its lowest time yet, nearing the C++ baseline. Zig's regression highlights the risk of "manual optimization" interfering with LLVM's auto-vectorization heuristics. C++ remains the gold standard for raw compute-bound throughput in this environment.
