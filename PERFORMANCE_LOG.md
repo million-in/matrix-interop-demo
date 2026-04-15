@@ -663,5 +663,63 @@ const thread_count = std.Thread.getCpuCount() catch 1;
 - Node.js via `node-ffi-napi`
 
 ---
+## 🧠 Benchmark Variance & Cache Effects (Important Insight)
+
+During repeated benchmarking runs, performance results vary significantly even when the code and inputs remain unchanged.
+
+Example observed results:
+
+Zig:  748 ms → 158 ms → 178 ms → 164 ms → 176 ms  
+Rust: 719 ms → 174 ms → 186 ms → 211 ms → 234 ms  
+C++:  367 ms → 152 ms → 170 ms → 182 ms
+
+### Why this happens
+
+Matrix multiplication performance is heavily influenced by **CPU state**, not just code:
+
+-   **Cache warmth (L1/L2/L3):**  
+    Data may already be cached from previous runs, making execution significantly faster.
+-   **Cache eviction:**  
+    Background processes (browser, OS services) can evict hot data from cache, causing slowdowns.
+-   **Branch predictor & prefetcher state:**  
+    Modern CPUs “learn” memory access patterns over time, improving or degrading performance between runs.
+-   **OS scheduling noise:**  
+    CPU time is shared with system processes, introducing variability.
+
+* * *
+
+### Key Insight
+
+> Performance is not just about computation speed — it is about **memory locality and CPU cache reuse**.
+
+Matrix multiplication performance is dominated by:
+
+-   How efficiently data fits into cache lines (typically 64 bytes)
+-   Whether memory access is sequential or strided
+-   How often the CPU must fetch from L2/L3 or RAM
+
+* * *
+
+### Practical Conclusion
+
+Small code changes may not matter as much as:
+
+-   Memory access patterns
+-   Cache reuse efficiency
+-   Data layout in memory
+
+In high-performance systems, the goal is:
+
+> **Minimize cache misses and maximize reuse per cache line fetched.**
+
+* * *
+
+### Implication for this project
+
+This benchmark demonstrates that:
+
+-   Language choice alone is not the primary performance factor
+-   Compiler optimizations and memory access patterns dominate runtime behavior
+-   Real-world performance must be measured across multiple runs, not single executions
 
 *This log is the primary evidence base for all claims made in README.md and DEEP_DIVE.md. Every number in this document corresponds to a real measurement made on real hardware under the specified conditions. Reproducing these results on different hardware will yield different absolute values but the same relative patterns.*

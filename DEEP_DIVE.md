@@ -523,6 +523,25 @@ Your job is to write code that the compiler can reason about clearly. When the c
 ### Model 5: Measure, Then Optimize
 The Stage 4 paradox — where a theoretically correct optimization caused a 58% regression — is the most important lesson from this entire project. Never assume. Always measure. The hardware is more complex than your mental model of it, and that gap is where incorrect optimization intuitions live.
 
+## The "Stabilization" Phenomenon: OS Jitter & Thermals
+When you see your benchmark results fluctuate between 150ms and 230ms across 10 runs, you are no longer seeing the performance of your **code**. You are seeing the performance of the **environment**.
+
+### Key Factors in Benchmark Variance:
+1.  **CPU Turbo Boost**: On the first few runs, your CPU might boost its frequency (e.g., from 3.0GHz to 4.2GHz). As the CPU heats up, it will throttle down to maintain a safe temperature.
+2.  **L3 Cache State**: Subsequent runs might benefit from data that is still sitting in the L3 cache or even the OS's file buffers for the binary.
+3.  **Interrupts**: The Windows OS kernel might interrupt your benchmark thousands of times per second to handle networking, mouse movements, or background services. At 150ms, a single interrupt can add 10ms to the total time.
+
+---
+
+## Conclusion: Toolchain Parity
+The fact that Zig, Rust, and C++ all reached a ~160ms baseline is the ultimate proof of **Hardware Sympathy**.
+
+At the beginning of this project, we asked: "Which language is fastest?"
+The answer at the end of this project is: **"It doesn't matter."**
+
+If you understand how to align your data with the CPU's caches and vector units, you can achieve world-class performance in any systems-level language. You have moved from a programmer who writes "software" to an engineer who understands the **Machine**.
+
+
 ---
 
 *This document was written from first principles, grounded in benchmark data from real hardware. All numbers are reproducible. See PERFORMANCE_LOG.md for the full audit trail.*
