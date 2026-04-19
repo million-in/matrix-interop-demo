@@ -16,29 +16,88 @@ export fn zig_matrix_multiply(
 
     @memset(result_ptr[0 .. m * p], 0);
 
-    // Stage 4: Cache Blocking (Tiling)
+    const m_limit = (m / BLOCK_SIZE) * BLOCK_SIZE;
+    const n_limit = (n / BLOCK_SIZE) * BLOCK_SIZE;
+    const p_limit = (p / BLOCK_SIZE) * BLOCK_SIZE;
+
+    multiplyFullTiles(a_ptr, n, b_ptr, p, result_ptr, m_limit, n_limit, p_limit);
+
+    if (p_limit < p) {
+        multiplyRange(a_ptr, n, b_ptr, p, result_ptr, 0, m_limit, 0, n_limit, p_limit, p);
+    }
+
+    if (n_limit < n) {
+        multiplyRange(a_ptr, n, b_ptr, p, result_ptr, 0, m_limit, n_limit, n, 0, p);
+    }
+
+    if (m_limit < m) {
+        multiplyRange(a_ptr, n, b_ptr, p, result_ptr, m_limit, m, 0, n, 0, p);
+    }
+}
+
+fn multiplyFullTiles(
+    a_ptr: [*]const f32,
+    n: usize,
+    b_ptr: [*]const f32,
+    p: usize,
+    result_ptr: [*]f32,
+    m_limit: usize,
+    n_limit: usize,
+    p_limit: usize,
+) void {
     var ii: usize = 0;
-    while (ii < m) : (ii += BLOCK_SIZE) {
+    while (ii < m_limit) : (ii += BLOCK_SIZE) {
         var kk: usize = 0;
-        while (kk < n) : (kk += BLOCK_SIZE) {
+        while (kk < n_limit) : (kk += BLOCK_SIZE) {
             var jj: usize = 0;
-            while (jj < p) : (jj += BLOCK_SIZE) {
-                
-                // Process the block
-                var i = ii;
-                const i_end = @min(ii + BLOCK_SIZE, m);
-                while (i < i_end) : (i += 1) {
-                    var k = kk;
-                    const k_end = @min(kk + BLOCK_SIZE, n);
-                    while (k < k_end) : (k += 1) {
-                        const a_val = a_ptr[i * n + k];
-                        var j = jj;
-                        const j_end = @min(jj + BLOCK_SIZE, p);
-                        while (j < j_end) : (j += 1) {
-                            result_ptr[i * p + j] += a_val * b_ptr[k * p + j];
+            while (jj < p_limit) : (jj += BLOCK_SIZE) {
+                var i: usize = 0;
+                while (i < BLOCK_SIZE) : (i += 1) {
+                    const row = ii + i;
+                    const a_row = a_ptr + row * n;
+                    const result_tile = result_ptr + row * p + jj;
+
+                    var k: usize = 0;
+                    while (k < BLOCK_SIZE) : (k += 1) {
+                        const a_val = a_row[kk + k];
+                        const b_tile = b_ptr + (kk + k) * p + jj;
+
+                        for (0..BLOCK_SIZE) |j| {
+                            result_tile[j] += a_val * b_tile[j];
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+fn multiplyRange(
+    a_ptr: [*]const f32,
+    n: usize,
+    b_ptr: [*]const f32,
+    p: usize,
+    result_ptr: [*]f32,
+    row_start: usize,
+    row_end: usize,
+    k_start: usize,
+    k_end: usize,
+    col_start: usize,
+    col_end: usize,
+) void {
+    var i = row_start;
+    while (i < row_end) : (i += 1) {
+        const a_row = a_ptr + i * n;
+        const result_row = result_ptr + i * p;
+
+        var k = k_start;
+        while (k < k_end) : (k += 1) {
+            const a_val = a_row[k];
+            const b_row = b_ptr + k * p;
+
+            var j = col_start;
+            while (j < col_end) : (j += 1) {
+                result_row[j] += a_val * b_row[j];
             }
         }
     }

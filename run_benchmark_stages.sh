@@ -136,6 +136,15 @@ run_stage() {
     run_zig "$dir" "$@"
 }
 
+run_current() {
+    local head
+    head="$(git -C "$ROOT_DIR" rev-parse --short HEAD)"
+
+    printf '\n=== current (%s) ===\n' "$head"
+    build_rust "$ROOT_DIR" "-C target-cpu=native"
+    run_zig "$ROOT_DIR" -Doptimize=ReleaseFast -Dtarget=native
+}
+
 main() {
     local cmd
 
@@ -152,6 +161,7 @@ main() {
     run_stage stage2 906609d "-C target-cpu=native" -Doptimize=ReleaseFast -Dtarget=native
     run_stage stage3 c7c6d4c "-C target-cpu=native" -Doptimize=ReleaseFast -Dtarget=native
     run_stage stage4 32f7d90 "-C target-cpu=native" -Doptimize=ReleaseFast -Dtarget=native
+    run_current
 }
 
 main "$@"
