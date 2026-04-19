@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/matrix-stages.XXXXXX")"
 KEEP_WORKTREES="${KEEP_WORKTREES:-0}"
 USE_CURRENT_ZIG_ALL_STAGES="${USE_CURRENT_ZIG_ALL_STAGES:-0}"
+USE_STAGE_MATCHED_ZIG="${USE_STAGE_MATCHED_ZIG:-1}"
 
 declare -a WORKTREES=()
 
@@ -91,9 +92,27 @@ prepare_rust_crate_root() {
     cp "$ROOT_DIR/rust/src/lib.rs" "$dir/rust/src/lib.rs"
 }
 
+prepare_benchmark_harness() {
+    local dir="$1"
+    cp "$ROOT_DIR/bench/bench.zig" "$dir/bench/bench.zig"
+}
+
 prepare_current_zig_kernel() {
     local dir="$1"
     cp "$ROOT_DIR/zig/matrix.zig" "$dir/zig/matrix.zig"
+}
+
+prepare_stage_matched_zig_kernel() {
+    local dir="$1"
+    local stage="$2"
+    local src="$ROOT_DIR/zig/matrix_${stage}.zig"
+
+    if [[ ! -f "$src" ]]; then
+        printf 'missing stage-matched Zig kernel: %s\n' "$src" >&2
+        exit 1
+    fi
+
+    cp "$src" "$dir/zig/matrix.zig"
 }
 
 build_rust() {
@@ -130,11 +149,13 @@ run_stage() {
     shift 3
 
     local dir
+    local zig_source_note=""
     if [[ "$USE_CURRENT_ZIG_ALL_STAGES" == "1" ]]; then
-        printf '\n=== %s (%s) [current-zig] ===\n' "$label" "$commit"
-    else
-        printf '\n=== %s (%s) ===\n' "$label" "$commit"
+        zig_source_note=" [current-zig]"
+    elif [[ "$USE_STAGE_MATCHED_ZIG" == "1" ]]; then
+        zig_source_note=" [stage-matched-zig]"
     fi
+    printf '\n=== %s (%s)%s ===\n' "$label" "$commit" "$zig_source_note"
     dir="$(add_worktree "$label" "$commit")"
 
     if [[ "$label" == "stage1" ]]; then
@@ -144,8 +165,11 @@ run_stage() {
     fi
 
     prepare_rust_crate_root "$dir"
+    prepare_benchmark_harness "$dir"
     if [[ "$USE_CURRENT_ZIG_ALL_STAGES" == "1" ]]; then
         prepare_current_zig_kernel "$dir"
+    elif [[ "$USE_STAGE_MATCHED_ZIG" == "1" ]]; then
+        prepare_stage_matched_zig_kernel "$dir" "$label"
     fi
     build_rust "$dir" "$rustflags"
     run_zig "$dir" "$@"
@@ -172,6 +196,8 @@ main() {
     printf 'Host target: %s\n' "$RUST_TARGET"
     if [[ "$USE_CURRENT_ZIG_ALL_STAGES" == "1" ]]; then
         printf 'Using current zig/matrix.zig for historical stages\n'
+    elif [[ "$USE_STAGE_MATCHED_ZIG" == "1" ]]; then
+        printf 'Using stage-matched Zig kernels (zig/matrix_stage{1..4}.zig)\n'
     fi
     rustup target add "$RUST_TARGET"
 
